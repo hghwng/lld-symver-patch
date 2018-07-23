@@ -52,6 +52,7 @@
 #include "llvm/Support/TarWriter.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Process.h"
 #include <cstdlib>
 #include <utility>
 
@@ -588,6 +589,38 @@ static int parseInt(StringRef S, opt::Arg *Arg) {
   return V;
 }
 
+static void parseSymverPatch(StringRef Path) {
+  std::unique_ptr<MemoryBuffer> MB =
+      CHECK(MemoryBuffer::getFile(Path), "could not open " + Path);
+  MemoryBufferRef MBRef = MB->getMemBufferRef();
+  make<std::unique_ptr<MemoryBuffer>>(std::move(MB)); // take MB ownership
+  auto Buffer = MBRef.getBuffer();
+
+  StringRef Line;
+  while (true) {
+    std::tie(Line, Buffer) = Buffer.split("\n");
+    StringRef OperationStr, RegexStr;
+    std::tie(OperationStr, RegexStr) = Line.split(" ");
+
+    SymverPatch Patch;
+    using Op = SymverPatch::Operations;
+    Patch.Operation = StringSwitch<Op>(OperationStr)
+      .Case("Ignore", Op::Ignore)
+      .Case("RmVer", Op::RmVer)
+      .Default(Op::Unknown);
+    if (Patch.Operation == Op::Unknown)
+      fatal("Unknown symver patch operation " + OperationStr);
+
+    Patch.Filter = RegexStr;
+    std::string ParseError;
+    if (!Patch.Filter.isValid(ParseError))
+      fatal("Cannot parse Symver filter regex " + RegexStr + ": " + ParseError);
+    Config->SymverPatches.push_back(std::move(Patch));
+
+    if (Buffer.empty()) break;
+  }
+}
+
 // Initializes Config members by the command line options.
 void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   Config->AllowMultipleDefinition =
@@ -783,6 +816,10 @@ void LinkerDriver::readConfigs(opt::InputArgList &Args) {
   for (auto *Arg : Args.filtered(OPT_version_script))
     if (Optional<MemoryBufferRef> Buffer = readFile(Arg->getValue()))
       readVersionScript(*Buffer);
+
+  auto symver_patch = Process::GetEnv("LLD_SYMVER_PATCH");
+  if (symver_patch.hasValue())
+    parseSymverPatch(symver_patch.getValue());
 }
 
 // Some Config members do not directly correspond to any particular

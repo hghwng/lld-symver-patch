@@ -891,6 +891,36 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
     if (Alignment > UINT32_MAX)
       error(toString(this) + ": alignment too large: " + Name);
 
+    // Apply symver patches
+    using Op = SymverPatch::Operations;
+    Op Operation = Op::Unknown;
+    std::string FullName = Name;
+    if (Ver) {
+      StringRef VerName = this->StringTable.data() + Ver->getAux()->vda_name;
+      FullName = (Name + "@" + VerName).str();
+    }
+
+    for (auto &Patch: Config->SymverPatches) {
+      if (!Patch.Filter.match(FullName))
+        continue;
+      if (Operation != Op::Unknown)
+        warn("multiple matched symver operation of " + FullName);
+      Operation = Patch.Operation;
+    }
+
+    switch (Operation) {
+    case Op::Ignore:
+      log("ignored symbol of " + FullName);
+      return;
+    case Op::RmVer:
+      log("removed symbol version of " + FullName);
+      VersymIndex = 0;
+      Ver = nullptr;
+      break;
+    default:
+      break;
+    }
+
     if (!Hidden)
       Symtab->addShared(Name, *this, Sym, Alignment, VersymIndex);
 
