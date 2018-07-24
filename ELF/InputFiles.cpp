@@ -911,7 +911,7 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
     switch (Operation) {
     case Op::Ignore:
       log("ignored symbol of " + FullName);
-      return;
+      goto ignore;
     case Op::RmVer:
       log("removed symbol version of " + FullName);
       VersymIndex = 0;
@@ -931,6 +931,8 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
       Name = Saver.save(Name + "@" + VerName);
       Symtab->addShared(Name, *this, Sym, Alignment, VersymIndex);
     }
+  ignore:
+    continue;
   }
 }
 
