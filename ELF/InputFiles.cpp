@@ -896,6 +896,8 @@ template <class ELFT> void SharedFile<ELFT>::parseSoName() {
       SoName = this->StringTable.data() + Val;
       return;
     }
+  ignore:
+    continue;
   }
 }
 
@@ -1021,26 +1023,52 @@ template <class ELFT> void SharedFile<ELFT>::parseRest() {
       continue;
 
     uint64_t Alignment = getAlignment(Sections, Sym);
-    if (!(Versyms[I] & VERSYM_HIDDEN))
-      Symtab->addShared(Name, *this, Sym, Alignment, Idx);
 
-    // Also add the symbol with the versioned name to handle undefined symbols
-    // with explicit versions.
-    if (Idx == VER_NDX_GLOBAL)
-      continue;
+    StringRef VersionedName = Name;
+    if (Idx != VER_NDX_GLOBAL) {
+      // Also add the symbol with the versioned name to handle undefined symbols
+      // with explicit versions.
+      if (Idx >= Verdefs.size() || Idx == VER_NDX_LOCAL) {
+        error("corrupt input file: version definition index " + Twine(Idx) +
+              " for symbol " + Name + " is out of bounds\n>>> defined in " +
+              toString(this));
+      }
 
-    if (Idx >= Verdefs.size() || Idx == VER_NDX_LOCAL) {
-      error("corrupt input file: version definition index " + Twine(Idx) +
-            " for symbol " + Name + " is out of bounds\n>>> defined in " +
-            toString(this));
-      continue;
+      StringRef VerName =
+        this->StringTable.data() + Verdefs[Idx]->getAux()->vda_name;
+      VersionedNameBuffer.clear();
+      VersionedName = (Name + "@" + VerName).toStringRef(VersionedNameBuffer);
     }
 
-    StringRef VerName =
-        this->StringTable.data() + Verdefs[Idx]->getAux()->vda_name;
-    VersionedNameBuffer.clear();
-    Name = (Name + "@" + VerName).toStringRef(VersionedNameBuffer);
-    Symtab->addShared(Saver.save(Name), *this, Sym, Alignment, Idx);
+    // Apply symver patches
+    using Op = SymverPatch::Operations;
+    Op Operation = Op::Unknown;
+    for (auto &Patch: Config->SymverPatches) {
+      if (!Patch.Filter.match(VersionedName))
+        continue;
+      if (Operation != Op::Unknown)
+        warn("multiple matched symver operation of " + VersionedName);
+      Operation = Patch.Operation;
+    }
+
+    switch (Operation) {
+    case Op::Ignore:
+      log("ignored symbol of " + VersionedName);
+      goto ignore;
+    case Op::RmVer:
+      log("removed symbol version of " + VersionedName);
+      Idx = VER_NDX_GLOBAL;
+      break;
+    default:
+      break;
+    }
+
+    if (!(Versyms[I] & VERSYM_HIDDEN))
+      Symtab->addShared(Name, *this, Sym, Alignment, Idx);
+    if (Idx != VER_NDX_GLOBAL)
+      Symtab->addShared(Saver.save(VersionedName), *this, Sym, Alignment, Idx);
+  ignore:
+    continue;
   }
 }
 

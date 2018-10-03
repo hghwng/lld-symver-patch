@@ -18,6 +18,7 @@
 #include "llvm/Support/CachePruning.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/Support/Regex.h"
 #include <vector>
 
 namespace lld {
@@ -74,6 +75,11 @@ struct VersionDefinition {
   uint16_t Id = 0;
   std::vector<SymbolVersion> Globals;
   size_t NameOff = 0; // Offset in the string table
+};
+
+struct SymverPatch {
+  enum class Operations { Ignore, RmVer, Unknown } Operation;
+  llvm::Regex Filter;
 };
 
 // This struct contains the global configuration for the linker.
@@ -212,6 +218,8 @@ struct Configuration {
   unsigned LTOO;
   unsigned Optimize;
   unsigned ThinLTOJobs;
+
+  std::vector<SymverPatch> SymverPatches;
 
   // The following config options do not directly correspond to any
   // particualr command line options.
