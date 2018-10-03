@@ -18,6 +18,8 @@ def kill_at: F<"kill-at">, HelpText<"Remove @n from exported symbols">;
 def l: JoinedOrSeparate<["-"], "l">, MetaVarName<"<libName>">,
   HelpText<"Root name of library to use">;
 def m: JoinedOrSeparate<["-"], "m">, HelpText<"Set target emulation">;
+def map: S<"Map">, HelpText<"Output a linker map">;
+def map_eq: J<"Map=">, Alias<map>;
 def no_whole_archive: F<"no-whole-archive">,
     HelpText<"No longer include all object files for following archives">;
 def large_address_aware: Flag<["--"], "large-address-aware">,
@@ -33,6 +35,8 @@ def subs: S<"subsystem">, HelpText<"Specify subsystem">;
 def stack: S<"stack">;
 def strip_all: F<"strip-all">,
     HelpText<"Omit all symbol information from the output binary">;
+def strip_debug: F<"strip-debug">,
+    HelpText<"Omit all debug information, but keep symbol information">;
 def whole_archive: F<"whole-archive">,
     HelpText<"Include all object files for following archives">;
 def verbose: F<"verbose">, HelpText<"Verbose mode">;
@@ -41,6 +45,7 @@ def verbose: F<"verbose">, HelpText<"Verbose mode">;
 def _HASH_HASH_HASH : Flag<["-"], "###">,
     HelpText<"Print (but do not run) the commands to run for this compilation">;
 def mllvm: S<"mllvm">;
+def pdb: S<"pdb">, HelpText<"Specify output PDB debug information file">;
 def Xlink : J<"Xlink=">, MetaVarName<"<arg>">,
     HelpText<"Pass <arg> to the COFF linker">;
 
@@ -52,7 +57,7 @@ def build_id: F<"build-id">;
 def disable_auto_image_base: F<"disable-auto-image-base">;
 def enable_auto_image_base: F<"enable-auto-image-base">;
 def enable_auto_import: F<"enable-auto-import">;
-def end_group: J<"end-group">;
+def end_group: F<"end-group">;
 def full_shutdown: Flag<["--"], "full-shutdown">;
 def high_entropy_va: F<"high-entropy-va">, HelpText<"Enable 64-bit ASLR">;
 def major_image_version: S<"major-image-version">;
@@ -61,7 +66,7 @@ def no_seh: F<"no-seh">;
 def nxcompat: F<"nxcompat">, HelpText<"Enable data execution prevention">;
 def pic_executable: F<"pic-executable">;
 def sysroot: J<"sysroot">, HelpText<"Sysroot">;
-def start_group: J<"start-group">;
+def start_group: F<"start-group">;
 def tsaware: F<"tsaware">, HelpText<"Create Terminal Server aware executable">;
 def v: Flag<["-"], "v">, HelpText<"Display the version number">;
 def version: F<"version">, HelpText<"Display the version number and exit">;
@@ -69,3 +74,4 @@ def version: F<"version">, HelpText<"Display the version number and exit">;
 // Alias
 def alias_entry_e: JoinedOrSeparate<["-"], "e">, Alias<entry>;
 def alias_strip_s: Flag<["-"], "s">, Alias<strip_all>;
+def alias_strip_S: Flag<["-"], "S">, Alias<strip_debug>;
